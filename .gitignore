@@ -1,0 +1,11 @@
+# Ignorar ambiente virtual
+venv/
+env/
+__pycache__/
+
+# Ignorar arquivos temporários do sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar arquivos de log ou cache do Streamlit
+.streamlit/
