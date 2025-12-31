@@ -255,7 +255,8 @@ input_data = {
     'family_history': map_yn[family_hist], 'FAVC': map_yn[favc], 'FCVC': map_fcvc[fcvc_label],
     'NCP': float(ncp), 'CAEC': map_caec[caec_label], 'SMOKE': "yes" if smoke else "no",
     'CH2O': float(ch2o_model), 'SCC': "yes" if scc else "no", 'FAF': float(faf_model), 'TUE': float(tue_model),
-    'CALC': map_calc[calc_label], 'MTRANS': map_mtrans[mtrans_label], 'Risk_Interaction': float(imc_calc)
+    'CALC': map_calc[calc_label], 'MTRANS': map_mtrans[mtrans_label]
+    # 'Risk_Interaction': REMOVIDO PARA FORÇAR USO DOS HÁBITOS PELO MODELO ML
 }
 df_input = pd.DataFrame([input_data])
 
