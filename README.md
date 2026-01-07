@@ -17,9 +17,9 @@ Esse estudo visa expor e analisar os dados do arquivo "Obesity.csv"  e desenvolv
 <br> 
 <img width="19" height="18" alt="image" src="https://github.com/user-attachments/assets/a798cae4-46c2-42cc-b83c-42bdef303fd5" />
  Acurácia do modelo:  Utilizando o Random Forest, o modelo desenvolvido pelo grupo atingiu a acurácia de 85,3%!
- <br> <br><br><br>
+ <br> <br><br>
  
-📌 Principais insights:
+# 📌 Principais insights:
 
  Os dados analisados confirmam que a obesidade é resultado da interação entre múltiplos fatores:
 	<br> • Estilo de vida
@@ -27,14 +27,14 @@ Esse estudo visa expor e analisar os dados do arquivo "Obesity.csv"  e desenvolv
 	<br> • Hábitos alimentares
 <br> 	• Padrões de mobilidade
 
-<br><br>
-🔹 Nível de obesidade: a visualização por níveis demonstra que: <br>
+<br>
+🔹 Nível de obesidade: <br>
 	• O sobrepeso concentra grande parte da população <br>
 	• Casos de obesidade tipo I, II e III também aparecem de forma relevante <br>
 📌 Esse padrão sugere uma progressão gradual do excesso de peso, indicando falhas em estratégias preventivas antes da instalação da obesidade severa.
 
-<br>
-🔹 Obesidade por gênero: observa-se diferença na distribuição do IMC entre os gêneros: <br>
+<br><br>
+🔹 Obesidade por gênero: <br>
 	• Mulheres apresenta IMC médio mais elevado <br>
 	• Homens demonstram maior concentração em faixas de peso normal <br>
 📌  Diferenças hormonais, comportamentais e socioculturais podem explicar essas variações, conforme apontado pela literatura epidemiológica.
@@ -43,7 +43,39 @@ Esse estudo visa expor e analisar os dados do arquivo "Obesity.csv"  e desenvolv
 🔹 Obesidade por faixa etária: <br>
 	• As faixas adultas concentram maior incidência de sobrepeso e obesidade <br>
 	• Faixas mais jovens apresentam maior proporção de peso normal <br>
-📌 O ganho de peso tende a se intensificar com o avanço da idade, associado à redução da taxa metabólica basal e mudanças no estilo de vida.
+📌 O ganho de peso tende a se intensificar com o avanço da idade, associado à redução da taxa metabólica basal e mudanças no estilo de vida.<br><br>
+
+
+**A relação entre hábitos de uma pessoas e as chances de ter obesidade**<br><br>
+
+🍺 **Consumo de álcool:** indivíduos com consumo frequente de álcool apresentam ,aior concentração de sobrepeso e obesidade <br>
+
+O álcool possui alto valor calórico e pode estimular comportamentos alimentares inadequados, contribuindo para o aumento do IMC. <br><br>
+
+🏃 **Atividade física:** A relação entre atividade física e obesidade é clara:<br>
+	• Baixa atividade física está associada a maiores níveis de obesidade<br>
+	• Maior prática de atividade física correlaciona-se com IMC mais baixo<br>
+
+A atividade física surge como um dos principais fatores protetores contra a obesidade.<br><br>
+
+💧 **Consumo de água:** <br>
+	• Baixo consumo de água está associado a maiores níveis de obesidade<br>
+	• Consumo adequado correlaciona-se com melhores indicadores corporais<br>
+
+A hidratação adequada auxilia no controle do apetite e no metabolismo energético.<br><br>
+
+🚬 **Tabagismo:** a comparação entre fumantes e não fumantes mostra<br>
+	• Diferenças sutis no IMC médio<br>
+	• O tabagismo não se apresenta como fator de proteção real<br>
+
+Apesar de crenças populares, o tabagismo não reduz riscos metabólicos e não deve ser considerado estratégia de controle de peso.<br><br>
+
+🚗 **Meio de transporte:** a análise de mobilidade indica que <br>
+	• Indivíduos que caminham ou utilizam bicicleta apresentam menor incidência de obesidade<br>
+	• Uso predominante de transporte passivo associa-se a maior IMC<br>
+
+A mobilidade urbana influencia diretamente os indicadores de saúde corporal.
+
 
 
 
