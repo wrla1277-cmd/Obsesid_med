@@ -1,0 +1,456 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+import plotly.express as px
+import plotly.graph_objects as go
+import base64
+from datetime import datetime
+import streamlit.components.v1 as components
+
+# ==============================================================================
+# 1. CONFIGURAÇÃO VISUAL (PREMIUM MEDICAL DESIGN - V4)
+# ==============================================================================
+st.set_page_config(
+    page_title="FIAP-Med | Clinical Intelligence",
+    layout="wide",
+    page_icon="🩺",
+    initial_sidebar_state="expanded"
+)
+
+# Paleta de Cores (V4)
+COLOR_BG = "#0f172a"
+COLOR_SIDEBAR = "#1e293b"
+COLOR_CARD = "#1e293b"
+COLOR_PRIMARY = "#3b82f6"
+COLOR_ACCENT = "#60a5fa"
+COLOR_TEXT = "#f8fafc"
+COLOR_SUCCESS = "#10b981"
+COLOR_WARNING = "#f59e0b"
+COLOR_DANGER = "#ef4444"
+
+# CSS Injetado (Layout V4)
+st.markdown(f"""
+    <style>
+        /* Global Styles */
+        .stApp {{ background-color: {COLOR_BG}; color: {COLOR_TEXT}; font-family: 'Inter', sans-serif; }}
+        [data-testid="stSidebar"] {{ background-color: {COLOR_SIDEBAR}; border-right: 1px solid #334155; }}
+        
+        /* Header V4 */
+        .fiap-header {{
+            background: linear-gradient(135deg, #1e40af 0%, #1e1b4b 100%);
+            padding: 2.5rem; border-radius: 16px; color: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); margin-bottom: 2rem;
+            border: 1px solid #3b82f644;
+            text-align: left;
+        }}
+        .fiap-header h1 {{ margin: 0; font-size: 2.2rem; font-weight: 800; }}
+        .fiap-header p {{ margin-top: 0.5rem; opacity: 0.8; font-size: 1.1rem; }}
+        
+        /* KPI Cards HTML (V4) */
+        .kpi-container {{ display: flex; gap: 1rem; margin-bottom: 2rem; }}
+        .kpi-card {{
+            background-color: {COLOR_CARD}; padding: 1.5rem; border-radius: 12px;
+            border: 1px solid #334155; flex: 1; transition: transform 0.2s ease;
+        }}
+        .kpi-card:hover {{ border-color: {COLOR_PRIMARY}; transform: translateY(-2px); }}
+        .kpi-label {{ font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.5rem; }}
+        .kpi-value {{ font-size: 1.75rem; font-weight: 700; color: {COLOR_ACCENT}; }}
+
+        /* Tabs & Buttons (V4) */
+        .stTabs [data-baseweb="tab-list"] {{ gap: 8px; background-color: transparent; }}
+        .stTabs [data-baseweb="tab"] {{ background-color: #1e293b; border-radius: 8px 8px 0 0; color: #94a3b8; border: 1px solid #334155; border-bottom: none; }}
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {{ background-color: {COLOR_PRIMARY}; color: white; border-color: {COLOR_PRIMARY}; }}
+        .stButton > button {{ border-radius: 8px; font-weight: 600; padding: 0.6rem 1.5rem; }}
+        
+        /* Expander */
+        .streamlit-expanderHeader {{ background-color: #1e293b; border-radius: 8px; }}
+    </style>
+""", unsafe_allow_html=True)
+
+# Traduções e Cores
+CLASS_TRANSLATION = {
+    'Insufficient_Weight': 'Peso Insuficiente', 'Normal_Weight': 'Peso Normal',
+    'Overweight_Level_I': 'Sobrepeso Nível I', 'Overweight_Level_II': 'Sobrepeso Nível II',
+    'Obesity_Type_I': 'Obesidade Tipo I', 'Obesity_Type_II': 'Obesidade Tipo II', 'Obesity_Type_III': 'Obesidade Tipo III',
+    0: 'Peso Insuficiente', 1: 'Peso Normal', 2: 'Sobrepeso Nível I', 3: 'Sobrepeso Nível II',
+    4: 'Obesidade Tipo I', 5: 'Obesidade Tipo II', 6: 'Obesidade Tipo III'
+}
+
+COLOR_MAP_PT = {
+    'Peso Insuficiente': '#94a3b8', 'Peso Normal': '#10b981',
+    'Sobrepeso Nível I': '#facc15', 'Sobrepeso Nível II': '#f97316',
+    'Obesidade Tipo I': '#ef4444', 'Obesidade Tipo II': '#dc2626', 'Obesidade Tipo III': '#7f1d1d'
+}
+
+# ==============================================================================
+# 2. CARREGAMENTO (MANTIDO)
+# ==============================================================================
+@st.cache_resource
+def load_assets():
+    try:
+        pipeline = joblib.load('full_pipeline_v4.pkl')
+        model = joblib.load('best_obesity_model.pkl')
+        return pipeline, model
+    except FileNotFoundError:
+        return None, None
+
+@st.cache_data
+def load_dataset_reference():
+    try:
+        df = pd.read_csv('Obesity.csv')
+        if 'family_history_with_overweight' in df.columns:
+            df = df.rename(columns={'family_history_with_overweight': 'family_history'})
+        col_target = 'Obesity' if 'Obesity' in df.columns else 'NObeyesdad'
+        df['Diagnóstico_PT'] = df[col_target].map(CLASS_TRANSLATION)
+        df['Diagnóstico_PT'] = df['Diagnóstico_PT'].fillna(df[col_target])
+        return df
+    except:
+        return None
+
+pipeline_obj, model_obj = load_assets()
+df_ref = load_dataset_reference()
+
+# ==============================================================================
+# 3. LÓGICA DE INTELIGÊNCIA (MANTIDA V3) + RELATÓRIO VISUAL (V4)
+# ==============================================================================
+def corrigir_alucinacao_modelo(predicao_raw, imc):
+    # Dicionário de Hierarquia (0 a 6)
+    hierarquia = {'Insufficient_Weight': 0, 0: 0, 'Normal_Weight': 1, 1: 1, 'Overweight_Level_I': 2, 2: 2, 'Overweight_Level_II': 3, 3: 3, 'Obesity_Type_I': 4, 4: 4, 'Obesity_Type_II': 5, 5: 5, 'Obesity_Type_III': 6, 6: 6}
+    
+    # Regras de Segurança MÍNIMAS (Apenas para evitar erros graves)
+    # Se IMC < 18.5, é impossível ser Obeso. Forçamos Peso Insuficiente.
+    if imc < 18.5: return 'Insufficient_Weight'
+    
+    # Se IMC > 50 (Extremo), forçamos Obesidade III por segurança.
+    if imc >= 50: return 'Obesity_Type_III'
+    
+    # --- A MUDANÇA ESTÁ AQUI ---
+    # Removemos a regra que forçava "Obesity_Type_I" se IMC >= 30.
+    # Agora, se o IMC for 31 mas a IA disser "Sobrepeso" (por causa dos músculos/hábitos),
+    # nós respeitamos a IA.
+    
+    return predicao_raw
+
+def smart_predict(input_df, pipeline, model):
+    try:
+        if hasattr(pipeline, 'transform'):
+            X = pipeline.transform(input_df)
+            return model.predict(X)[0], model.predict_proba(X)[0]
+        elif hasattr(pipeline, 'predict'):
+            return pipeline.predict(input_df)[0], pipeline.predict_proba(input_df)[0]
+        elif hasattr(model, 'predict'): 
+             return model.predict(input_df)[0], model.predict_proba(input_df)[0]
+        return None, None
+    except: return None, None
+
+def gerar_html_relatorio(paciente, idade, peso, altura, imc, diag, proba, habitos):
+    # Layout V4 (Folha de Papel Limpa)
+    data_atual = datetime.now().strftime("%d/%m/%Y")
+    html = f"""
+    <html>
+    <head>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+            body {{ font-family: 'Inter', sans-serif; color: #1e293b; line-height: 1.6; margin: 0; padding: 40px; background: #f8fafc; }}
+            .report-card {{ background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); padding: 40px; border: 1px solid #e2e8f0; }}
+            .header {{ border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }}
+            .header h1 {{ color: #1e3a8a; margin: 0; font-size: 24px; }}
+            .section-title {{ color: #1e40af; font-size: 18px; font-weight: bold; margin: 30px 0 15px 0; border-left: 4px solid #3b82f6; padding-left: 12px; }}
+            .kpi-grid {{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }}
+            .kpi-box {{ background: #eff6ff; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #bfdbfe; }}
+            .kpi-box span {{ display: block; color: #1e40af; font-weight: bold; font-size: 20px; }}
+            .habits-list {{ columns: 2; list-style: none; padding: 0; }}
+            .habits-list li {{ margin-bottom: 10px; padding-left: 20px; position: relative; }}
+            .habits-list li::before {{ content: '•'; color: #3b82f6; position: absolute; left: 0; font-weight: bold; }}
+            .footer {{ margin-top: 50px; font-size: 11px; text-align: center; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="report-card">
+            <div class="header">
+                <div><h1>FIAP-Med Analytics</h1><p style="margin:0; color:#64748b;">Relatório Clínico Inteligente</p></div>
+                <div style="text-align:right; font-size:12px;">ID: {datetime.now().strftime("%Y%m%d")}-PX<br>Data: {data_atual}</div>
+            </div>
+            <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; margin-bottom: 30px;">
+                <div><b>Paciente:</b> {paciente}</div>
+                <div><b>Idade:</b> {idade} anos</div>
+                <div><b>Biometria:</b> {altura}m / {peso}kg</div>
+            </div>
+            <div class="section-title">Análise de Diagnóstico</div>
+            <div class="kpi-grid">
+                <div class="kpi-box"><b>Diagnóstico Final</b><span>{diag}</span></div>
+                <div class="kpi-box"><b>IMC</b><span>{imc:.1f} kg/m²</span></div>
+                <div class="kpi-box"><b>Confiança IA</b><span>{proba:.1f}%</span></div>
+            </div>
+            <div class="section-title">Perfil Comportamental</div>
+            <ul class="habits-list">
+                <li><b>Dieta Calórica:</b> {habitos['favc']}</li>
+                <li><b>Vegetais:</b> {habitos['fcvc']}</li>
+                <li><b>Hidratação:</b> {habitos['ch2o']}</li>
+                <li><b>Atividade:</b> {habitos['faf']}</li>
+                <li><b>Telas:</b> {habitos['tue']}</li>
+                <li><b>Fumo:</b> {habitos['smoke']}</li>
+            </ul>
+            <div class="footer">Gerado por FIAP-Med Decision Support System. Uso profissional.</div>
+        </div>
+    </body>
+    </html>
+    """
+    return html
+
+# ==============================================================================
+# 4. INTERFACE E INPUTS (MANTIDA V3 COM ESTILO V4)
+# ==============================================================================
+if pipeline_obj is None:
+    st.error("⚠️ ARQUIVOS .PKL NÃO ENCONTRADOS.")
+    st.stop()
+
+# --- GESTÃO DE ESTADO (SESSION STATE) ---
+if 'processed' not in st.session_state:
+    st.session_state.processed = False
+if 'prediction_data' not in st.session_state:
+    st.session_state.prediction_data = {}
+
+with st.sidebar:
+    st.image("https://img.icons8.com/fluency/96/stethoscope.png", width=60) # Ícone V4
+    st.title("Prontuário Digital")
+    st.markdown("---")
+    
+    nome_paciente = st.text_input("Nome do Paciente", "Paciente Exemplo")
+    
+    with st.expander("👤 Dados Biométricos", expanded=True):
+        gender = st.selectbox("Gênero", ["Masculino", "Feminino"])
+        age = st.number_input("Idade (anos)", 10, 100, 26)
+        height = st.number_input("Altura (m)", 1.20, 2.50, 1.70)
+        weight = st.number_input("Peso (kg)", 30.0, 300.0, 70.0)
+        family_hist = st.radio("Histórico Familiar de Obesidade", ["Sim", "Não"], horizontal=True, index=1)
+
+    with st.expander("🥗 Alimentação", expanded=False):
+        favc = st.radio("Dieta Hipercalórica/Gordurosa?", ["Sim", "Não"], horizontal=True, index=1)
+        fcvc_label = st.select_slider("Frequência de Vegetais", ["Nunca", "Às vezes", "Sempre"], value="Sempre")
+        ncp = st.slider("Refeições principais por dia", 1, 4, 3)
+        caec_label = st.selectbox("Comer entre refeições", ["Não", "Às vezes", "Frequentemente", "Sempre"], index=0)
+
+    with st.expander("🏃 Estilo de Vida", expanded=True):
+        smoke = st.checkbox("Fumante?", value=False)
+        scc = st.checkbox("Monitora Calorias Diariamente?", value=True)
+        ch2o_real = st.number_input("Água (Litros por dia)", min_value=0.5, max_value=10.0, value=2.5, step=0.1)
+        
+        faf_options = {"Sedentário (0 dias)": 0.0, "Leve (1 a 2 dias/semana)": 1.0, "Moderado (3 a 4 dias/semana)": 2.0, "Intenso (5 ou mais dias/semana)": 3.0}
+        faf_label = st.selectbox("Frequência de Exercícios", list(faf_options.keys()), index=2)
+        
+        tue_options = {"Baixo (0 a 2 horas/dia)": 0.0, "Médio (3 a 5 horas/dia)": 1.0, "Alto (Mais de 5 horas/dia)": 2.0}
+        tue_label = st.selectbox("Uso de Telas (Celular/PC)", list(tue_options.keys()), index=0)
+        
+        calc_label = st.selectbox("Consumo de Álcool", ["Não", "Às vezes", "Frequentemente", "Sempre"], index=0)
+        mtrans_label = st.selectbox("Meio de Transporte", ["Caminhada", "Transporte Público", "Automóvel", "Moto", "Bicicleta"], index=0)
+
+# Mapeamentos e DataFrame Input
+map_gen = {"Masculino": "Male", "Feminino": "Female"}
+map_yn = {"Sim": "yes", "Não": "no"}
+map_caec = {"Não": "no", "Às vezes": "Sometimes", "Frequentemente": "Frequently", "Sempre": "Always"}
+map_calc = {"Não": "no", "Às vezes": "Sometimes", "Frequentemente": "Frequently", "Sempre": "Always"}
+map_mtrans = {"Transporte Público": "Public_Transportation", "Automóvel": "Automobile", "Caminhada": "Walking", "Moto": "Motorbike", "Bicicleta": "Bike"}
+map_fcvc = {"Nunca": 1.0, "Às vezes": 2.0, "Sempre": 3.0}
+
+ch2o_model = 3.0 if ch2o_real >= 3.0 else ch2o_real
+faf_model = faf_options[faf_label]
+tue_model = tue_options[tue_label]
+imc_calc = weight / (height ** 2)
+
+input_data = {
+    'Gender': map_gen[gender], 'Age': float(age), 'Height': float(height), 'Weight': float(weight),
+    'family_history': map_yn[family_hist], 'FAVC': map_yn[favc], 'FCVC': map_fcvc[fcvc_label],
+    'NCP': float(ncp), 'CAEC': map_caec[caec_label], 'SMOKE': "yes" if smoke else "no",
+    'CH2O': float(ch2o_model), 'SCC': "yes" if scc else "no", 'FAF': float(faf_model), 'TUE': float(tue_model),
+    'CALC': map_calc[calc_label], 'MTRANS': map_mtrans[mtrans_label]
+    # 'Risk_Interaction': REMOVIDO PARA FORÇAR USO DOS HÁBITOS PELO MODELO ML
+}
+df_input = pd.DataFrame([input_data])
+
+# ==============================================================================
+# 5. DASHBOARD PRINCIPAL (LAYOUT V4)
+# ==============================================================================
+
+st.markdown("""
+    <div class="fiap-header">
+        <h1>🩺 FIAP-Med Analytics</h1>
+        <p>Sistema Inteligente de Apoio à Decisão Clínica</p>
+    </div>
+""", unsafe_allow_html=True)
+
+# LÓGICA DO BOTÃO "PROCESSAR"
+if st.button("🚀 PROCESSAR ANÁLISE COMPLETA", type="primary", use_container_width=True):
+    with st.spinner("Processando IA e dados..."):
+        pred_raw, pred_proba = smart_predict(df_input, pipeline_obj, model_obj)
+        
+        if pred_raw is not None:
+            pred_corrigida = corrigir_alucinacao_modelo(pred_raw, imc_calc)
+            diag_final = CLASS_TRANSLATION.get(pred_corrigida, str(pred_corrigida))
+            confianca = np.max(pred_proba) * 100
+            
+            # SALVAR NA MEMÓRIA DE SESSÃO
+            st.session_state.processed = True
+            st.session_state.prediction_data = {
+                'diag_final': diag_final,
+                'imc_calc': imc_calc,
+                'confianca': confianca,
+                'pred_proba': pred_proba,
+                'user_inputs': {
+                    'nome': nome_paciente, 'idade': age, 'peso': weight, 'altura': height,
+                    'gender': gender, 'family': family_hist, 'smoke': smoke, 'faf_model': faf_model,
+                    'favc': favc, 'fcvc': fcvc_label, 'ch2o': ch2o_real, 'faf_lbl': faf_label, 'tue': tue_label
+                }
+            }
+        else:
+            st.error("Erro na predição.")
+
+# EXIBIÇÃO DOS RESULTADOS
+if st.session_state.processed:
+    data = st.session_state.prediction_data
+    inputs = data['user_inputs']
+    
+    # KPI Top Section (V4 HTML Visual)
+    st.markdown(f"""
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <div class="kpi-label">Diagnóstico Final</div>
+                <div class="kpi-value">{data['diag_final']}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">IMC Calculado</div>
+                <div class="kpi-value">{data['imc_calc']:.1f} <span style='font-size:1rem; color:#64748b'>kg/m²</span></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Confiança IA</div>
+                <div class="kpi-value">{data['confianca']:.1f}%</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["📍 Diagnóstico & IA", "🌌 Universo & Segmentação", "📄 Relatório & Impressão"])
+    
+    # --- ABA 1 (ATUALIZADA COM INSIGHTS E VISUAL V4) ---
+    with tab1:
+        st.markdown("### Resultado da Análise")
+        
+        sorted_indices = np.argsort(data['pred_proba'])[::-1]
+        top1_idx = sorted_indices[0]
+        if hasattr(model_obj, 'classes_'): classes = model_obj.classes_
+        else: classes = [0,1,2,3,4,5,6]
+        classes_pt = [CLASS_TRANSLATION.get(c, str(c)) for c in classes]
+        top1_nome = classes_pt[top1_idx]
+        diag_final_str = data['diag_final']
+        is_discrepant = diag_final_str != top1_nome
+        
+        if is_discrepant:
+            st.warning(f"💡 **Insight Clínico:** Detectamos uma divergência. Pelos hábitos, a IA sugere **{top1_nome}**, mas a biometria confirma **{diag_final_str}**.")
+        
+        st.markdown("---")
+        
+        g1, g2 = st.columns([2, 1])
+        with g1:
+            st.markdown("#### 🧬 Padrões de Probabilidade")
+            df_prob = pd.DataFrame({'Diag': classes_pt, 'Prob': data['pred_proba']})
+            df_prob = df_prob.sort_values('Prob', ascending=True)
+            
+            # Cores V4
+            colors = ['#334155'] * len(df_prob)
+            for i, row in enumerate(df_prob.itertuples()):
+                if row.Diag == data['diag_final']:
+                    colors[i] = COLOR_MAP_PT.get(row.Diag, COLOR_PRIMARY)
+
+            fig = go.Figure(go.Bar(
+                x=df_prob['Prob'], y=df_prob['Diag'], orientation='h',
+                text=df_prob['Prob'].apply(lambda x: f"{x:.1%}"), textposition='auto',
+                marker_color=colors
+            ))
+            fig.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', 
+                font=dict(color='white', family='Inter'), margin=dict(l=0,r=0,t=0,b=0),
+                xaxis=dict(showgrid=False, showticklabels=False), height=300
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with g2:
+            st.markdown("#### ⚖️ Biometria (IMC)")
+            cor = "#28a745" if data['imc_calc'] < 25 else "#facc15" if data['imc_calc'] < 30 else "#ef4444"
+            fig_g = go.Figure(go.Indicator(mode="gauge+number", value=data['imc_calc'], gauge={'axis': {'range': [10, 50], 'tickfont': {'color': 'white'}}, 'bar': {'color': cor}, 'steps': [{'range': [10, 18.5], 'color': '#1e293b'}, {'range': [30, 50], 'color': '#7f1d1d'}]}))
+            fig_g.update_layout(height=300, margin=dict(t=20,b=20,l=20,r=20), paper_bgcolor='rgba(0,0,0,0)', font=dict(color='white', family='Inter'))
+            st.plotly_chart(fig_g, use_container_width=True)
+
+    # --- ABA 2 (VISUAL V4, LÓGICA V3) ---
+    with tab2:
+        st.markdown("### 🔭 Onde você está em relação aos outros pacientes?")
+        if df_ref is not None:
+            with st.expander("🔍 FILTRAR UNIVERSO DE COMPARAÇÃO", expanded=True):
+                col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+                f_gender = col_f1.checkbox(f"Apenas {inputs['gender']}s", value=False, key="fg1")
+                f_family = col_f2.checkbox("Mesmo Histórico Familiar", value=False, key="fg2")
+                f_smoke = col_f3.checkbox("Mesmo Status de Fumante", value=False, key="fg3")
+                f_active = col_f4.checkbox("Atividade Física Similar", value=False, key="fg4")
+            
+            df_filtered = df_ref.copy()
+            if f_gender:
+                target_gen = "Male" if inputs['gender'] == "Masculino" else "Female"
+                df_filtered = df_filtered[df_filtered['Gender'] == target_gen]
+            if f_family:
+                target_fam = "yes" if inputs['family'] == "Sim" else "no"
+                col_fam = 'family_history' if 'family_history' in df_filtered.columns else 'family_history_with_overweight'
+                df_filtered = df_filtered[df_filtered[col_fam] == target_fam]
+            if f_smoke:
+                target_smoke = "yes" if inputs['smoke'] else "no"
+                df_filtered = df_filtered[df_filtered['SMOKE'] == target_smoke]
+            if f_active:
+                df_filtered = df_filtered[(df_filtered['FAF'] >= inputs['faf_model'] - 1.0) & (df_filtered['FAF'] <= inputs['faf_model'] + 1.0)]
+
+            n_amostra = len(df_filtered)
+            if n_amostra > 0:
+                st.markdown(f"**Comparando com:** `{n_amostra}` pacientes compatíveis.")
+                try:
+                    # Gráfico Scatter V4
+                    fig_uni = px.scatter(
+                        df_filtered, x='Weight', y='Height', color='Diagnóstico_PT', 
+                        labels={'Weight': 'Peso (kg)', 'Height': 'Altura (m)', 'Diagnóstico_PT': 'Diagnóstico'},
+                        opacity=0.6, color_discrete_map=COLOR_MAP_PT 
+                    )
+                    fig_uni.add_trace(go.Scatter(
+                        x=[inputs['peso']], y=[inputs['altura']], mode='markers+text',
+                        marker=dict(size=25, symbol='star', color='white', line=dict(width=2, color=COLOR_DANGER)),
+                        name='VOCÊ', text=['VOCÊ'], textposition='top center',
+                        textfont=dict(size=15, color='white', family="Inter")
+                    ))
+                    fig_uni.update_layout(
+                        plot_bgcolor='rgba(15, 23, 42, 0.5)', paper_bgcolor='rgba(0,0,0,0)', 
+                        font=dict(color='#94a3b8', size=12), legend=dict(orientation="h", y=-0.2), height=500
+                    )
+                    st.plotly_chart(fig_uni, use_container_width=True)
+                except Exception as e: st.error(f"Erro no gráfico: {e}")
+            else:
+                st.warning("Nenhum paciente encontrado com essa combinação exata de filtros.")
+        else: st.warning("Arquivo 'Obesity.csv' não encontrado.")
+
+    # --- ABA 3 (RELATÓRIO V4) ---
+    with tab3:
+        st.markdown("### 📄 Relatório Médico")
+        st.info("Relatório pronto para download.")
+        habitos_display = {
+            'favc': "Sim" if inputs['favc']=="Sim" else "Não",
+            'fcvc': inputs['fcvc'],
+            'ch2o': f"{inputs['ch2o']} Litros",
+            'faf': inputs['faf_lbl'].split(" (")[0],
+            'tue': inputs['tue'].split(" (")[0],
+            'smoke': "Sim" if inputs['smoke'] else "Não"
+        }
+        html_report = gerar_html_relatorio(inputs['nome'], inputs['idade'], inputs['peso'], inputs['altura'], data['imc_calc'], data['diag_final'], data['confianca'], habitos_display)
+        b64 = base64.b64encode(html_report.encode()).decode()
+        
+        # Botão V4
+        href = f'<a href="data:file/html;base64,{b64}" download="Relatorio_FIAP_{inputs["nome"]}.html" style="text-decoration:none; width:100%;"><button style="background-color:{COLOR_SUCCESS}; color:white; padding:15px; width:100%; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">📥 BAIXAR RELATÓRIO PDF/HTML</button></a>'
+        c1, c2 = st.columns([1, 2])
+        c1.markdown(href, unsafe_allow_html=True)
+        components.html(html_report, height=600, scrolling=True)
+
+else:
+    st.info("👈 Preencha os dados e clique em PROCESSAR.")
