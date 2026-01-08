@@ -11,7 +11,7 @@ Esse estudo visa expor e analisar os dados do arquivo "Obesity.csv"  e desenvolv
  <img width="27" height="27" alt="image" src="https://github.com/user-attachments/assets/e76c0b3b-cbe3-4c62-adfb-44ff0b429c9e" /> • Arquivo .txt com o código em anexo nesse repositório. </br>
 <img width="27" height="27" alt="image" src="https://github.com/user-attachments/assets/e76c0b3b-cbe3-4c62-adfb-44ff0b429c9e" />•  Vídeo de apresentação em anexo no portal da FIAP. </br>
 <img width="27" height="27" alt="image" src="https://github.com/user-attachments/assets/e76c0b3b-cbe3-4c62-adfb-44ff0b429c9e" />• Pipeline de machine learning demonstrando toda a etapa de feature engineering e treinamento do modelo disponível nesse respositório. </br>
- <img width="27" height="27" alt="image" src="https://github.com/user-attachments/assets/e76c0b3b-cbe3-4c62-adfb-44ff0b429c9e" />• Visão analítica em um painel PBI com principais insights obtidos com o estudo sobre obesidade para apoiar analises de uma equipe médica. <br>
+ <img width="27" height="27" alt="image" src="https://github.com/user-attachments/assets/e76c0b3b-cbe3-4c62-adfb-44ff0b429c9e" />• Visão analítica na aplicação do Streamlit com principais insights obtidos com o estudo sobre obesidade para apoiar analises de uma equipe médica. <br>
   <img width="27" height="27" alt="image" src="https://github.com/user-attachments/assets/e76c0b3b-cbe3-4c62-adfb-44ff0b429c9e" />• Aplicação preditiva utilizando o Streamlit deployada -->  Acesse em: 🩺 FIAP-Med Analytics https://wrla1277-cmd-obsesid-med-streamlit-app-v3-1-ndlqrb.streamlit.app/#fiap-med-analytics
 
 <br> 
